@@ -31,6 +31,9 @@ import sys
 
 from pathlib import Path
 
+
+import serial
+
 sys.path.append(str(Path('../../pybundle/src')))
 sys.path.append(str(Path('../../pyholoscope/src')))
 sys.path.append(str(Path('../../cas/src')))
@@ -91,7 +94,19 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         self.handle_change_show_bundle_control(1)
 
-        
+        if self.sr:
+             try: 
+                 self.serial = serial.Serial('COM3', 9600, timeout=0,
+                      parity=serial.PARITY_EVEN, rtscts=1)
+                 self.serial.reset_output_buffer()
+                 time.sleep(1)    # Otherwise it seems not to work, not sure why
+                 
+             except:
+                 print("cannot open serial")
+                 self.serial = None
+          
+         
+        self.handle_sr_enabled()
     
     def create_layout(self):
         """ Called by parent class to assemble the GUI from Qt Widgets"""
@@ -476,7 +491,40 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.imageProcessor.set_batch_process_num(1)
                 self.update_file_processing()
 
-                    
+
+    def handle_sr_enabled(self):        
+          
+          if self.serial is not None:
+              if self.srEnabledCheck.isChecked():
+                  self.sr_set_led_mode(SEQUENTIAL)
+              else:    
+                  self.sr_set_led_mode(SINGLE)
+          if self.cam is not None:
+              if self.srEnabledCheck.isChecked():
+                  self.cam.set_trigger_mode(True)
+              else:
+                  self.cam.set_trigger_mode(False)
+
+          self.update_camera_ranges()
+          self.handle_changed_bundle_processing()    
+      
+      
+    def sr_set_led_mode(self, mode):
+          """ If using an array of LEDs, communicated with Arduino to set correct operation 
+          for current operation mode.
+          
+          """
+          if self.serial is not None:
+              self.serial.reset_output_buffer()
+      
+              if mode == SEQUENTIAL:
+                  print("writing multi")
+                  self.serial.write(b'm')
+              if mode == SINGLE:
+                  print("writing single")
+                  self.serial.write(b's1\n')   
+                  
+                  
     def handle_change_show_bundle_control(self, event):
         """Called when checkbox to show processing controls is toggled"""
 
