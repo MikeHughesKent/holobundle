@@ -28,13 +28,17 @@ University of Kent
 """
 
 import sys 
-sys.path.append('..\\..\\pyholoscope\\src')
-sys.path.append('..\\..\\pyBundle\\src')
-sys.path.append('..\\..\\Cam Acq Sys\\src')
-sys.path.append("..\\..\\Cam Acq Sys\\src\\widgets")
-sys.path.append("..\\..\\Cam Acq Sys\\src\\cameras")
-sys.path.append("..\\..\\Cam Acq Sys\\src\\threads")
 
+from pathlib import Path
+
+sys.path.append(str(Path('../../pybundle/src')))
+sys.path.append(str(Path('../../pyholoscope/src')))
+sys.path.append(str(Path('../../cas/src')))
+sys.path.append(str(Path('../../cas/src/widgets')))
+sys.path.append(str(Path('../../cas/src/cameras')))
+sys.path.append(str(Path('../../cas/src/threads')))
+sys.path.append(str(Path('../../cas/src/threads')))
+sys.path.append(str(Path('processors')))
 
 import time
 import numpy as np
