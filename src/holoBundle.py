@@ -34,7 +34,7 @@ from pathlib import Path
 
 import serial
 
-sys.path.append(str(Path('../../pybundle/src')))
+sys.path.append(str(Path('../../pyfibrebundle/src')))
 sys.path.append(str(Path('../../pyholoscope/src')))
 sys.path.append(str(Path('../../cas/src')))
 sys.path.append(str(Path('../../cas/src/widgets')))
@@ -75,12 +75,17 @@ from ImageAcquisitionThread import ImageAcquisitionThread
 from InlineBundleProcessor import InlineBundleProcessor
 
 
+# Led Modes
+SEQUENTIAL = 0
+SINGLE = 1
+
 class Holo_Bundle(CAS_GUI_Bundle):
     
     authorName = "AOG"
     appName = "HoloBundle"
     cuda = True
-    srBackgrounds = None    
+    srBackgrounds = None   
+    sr = True
     
     def __init__(self,parent=None):
         
@@ -446,7 +451,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 
                 # Windowing
                 if self.holoWindowCombo.currentText() == "Circular":
-                    self.imageProcessor.holo.window = 1
+                    self.imageProcessor.holo.set_auto_window(True)
+                    self.imageProcessor.holo.set_window_shape('circle')                    
                     self.imageProcessor.holo.set_window_radius(None)
                     self.imageProcessor.holo.set_window_thickness(self.holoWindowThicknessInput.value())
                 else:

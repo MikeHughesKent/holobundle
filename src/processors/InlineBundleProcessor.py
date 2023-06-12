@@ -87,8 +87,9 @@ class InlineBundleProcessor(ImageProcessorThread):
            
            #print("num images reconing with ", np.shape(imgs) )
  
-           outputFrame =  self.pyb.process(imgs)   
-           self.preProcessFrame = outputFrame
+           if imgs is not None:
+               outputFrame =  self.pyb.process(imgs)   
+               self.preProcessFrame = outputFrame
         
         
         else:   # Not Superresolution
