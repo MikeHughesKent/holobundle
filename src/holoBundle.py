@@ -63,7 +63,7 @@ import cv2 as cv
 from CAS_GUI_Base import CAS_GUI
 from CAS_GUI_Bundle import CAS_GUI_Bundle
 
-from ImageDisplay import ImageDisplay
+from image_display import ImageDisplay
 
 from cam_control_panel import *
 
@@ -89,16 +89,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
     
     def __init__(self,parent=None):
         
-        # Simulated camera used this file for images
-        self.sourceFilename = r"C:\Users\AOG\OneDrive - University of Kent\Experimental\Holography\Inline Bundle Holography\Superresolution\datasets\refs\ref1\imgs2_400.tif"
-        #self.sourceFilename = r"C:\Users\AOG\OneDrive - University of Kent\Experimental\Holography\Inline Bundle Holography\Superresolution\datasets\refs\ref1\background_stack.tif"
-        self.controlPanelSize = 220
-        self.rawImageBufferSize = 20
-
-        super(Holo_Bundle, self).__init__(parent)
         
-        self.handle_change_show_bundle_control(1)
-
         if self.sr:
              try: 
                  self.serial = serial.Serial('COM3', 9600, timeout=0,
@@ -110,6 +101,18 @@ class Holo_Bundle(CAS_GUI_Bundle):
                  print("cannot open serial")
                  self.serial = None
           
+        
+        # Simulated camera used this file for images
+        self.sourceFilename = r"..\\tests\\test_data\usaf_8_back.tif"
+        self.sourceFilename = r"C:\Users\AOG\OneDrive - University of Kent\Experimental\Holography\Inline Bundle Holography\Superresolution\datasets\refs\ref1\background_stack.tif"
+        self.controlPanelSize = 220
+        self.rawImageBufferSize = 20
+
+        super(Holo_Bundle, self).__init__(parent)
+        
+        self.handle_change_show_bundle_control(1)
+
+       
          
         self.handle_sr_enabled()
     
@@ -378,7 +381,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         topLayout.addStretch()
       
         self.srCalibBtn.clicked.connect(self.handle_sr_calibrate_click)
-        self.srEnabledCheck.clicked.connect(self.handle_changed_bundle_processing)
+        self.srEnabledCheck.stateChanged.connect(self.handle_sr_enabled)
         self.srSaveCalibBtn.clicked.connect(self.handle_save_sr_calib)
         self.srLoadCalibBtn.clicked.connect(self.handle_load_sr_calib)
         self.srAcquireBackgroundsBtn.clicked.connect(self.handle_acquire_sr_background)

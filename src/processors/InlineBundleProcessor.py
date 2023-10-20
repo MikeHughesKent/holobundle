@@ -58,22 +58,7 @@ class InlineBundleProcessor(ImageProcessorThread):
            if not inputFrame.ndim > 2:
               print("SR but no list of images")
               return None
-           #t1 = time.perf_counter()
-           #img = inputFrame[0]
-           #imgs = np.zeros((np.shape(img)[0], np.shape(img)[1], self.batchProcessNum))
-           #imgs[:,:,0] = img
-         
-           # Pull the rest of images off queue and put in array
-           #for idx, img in enumerate(inputFrame):
-           #    imgs[:,:,idx] = inputFrame[idx]
            
-           #if true:
-           #fig, axs = plt.subplots(2, 2)
-           ###plt.title("Before Sort")
-           #axs[0,0].imshow(imgs[:,:,0])
-           ##axs[0,1].imshow(imgs[:,:,1])
-          # axs[1,0].imshow(imgs[:,:,2])
-          # axs[1,1].imshow(imgs[:,:,3])
 
            imgs = pybundle.SuperRes.sort_sr_stack(inputFrame, self.batchProcessNum - 1)    
           
