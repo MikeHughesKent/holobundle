@@ -28,26 +28,27 @@ University of Kent
 """
 
 import sys 
-
+import os
 from pathlib import Path
 
 
 import serial
 
-sys.path.append(str(Path('../../pyfibrebundle/src')))
-sys.path.append(str(Path('../../pyholoscope/src')))
-sys.path.append(str(Path('../../cas/src')))
-sys.path.append(str(Path('../../cas/src/widgets')))
-sys.path.append(str(Path('../../cas/src/cameras')))
-sys.path.append(str(Path('../../cas/src/threads')))
-sys.path.append(str(Path('../../cas/src/threads')))
-sys.path.append(str(Path('processors')))
+
+file_dir = os.path.dirname(__file__)
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, 'processors')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/widgets')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/cameras')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/threads')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../pyfibrebundle/src')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../pyholoscope/src')))
+
 
 import time
 import numpy as np
 import math
 import pickle
-import pybundle
 import matplotlib.pyplot as plt
 
 from PyQt5 import QtGui, QtCore, QtWidgets
@@ -66,13 +67,14 @@ from CAS_GUI_Bundle import CAS_GUI_Bundle
 from image_display import ImageDisplay
 
 from cam_control_panel import *
-
-import pyholoscope
-from pybundle import PyBundle
-from pybundle import SuperRes
-
 from ImageAcquisitionThread import ImageAcquisitionThread
 from InlineBundleProcessor import InlineBundleProcessor
+
+import pyholoscope
+
+import pybundle
+from pybundle import PyBundle
+from pybundle import SuperRes
 
 
 # Led Modes
@@ -87,9 +89,10 @@ class Holo_Bundle(CAS_GUI_Bundle):
     srBackgrounds = None   
     sr = True
     
-    def __init__(self,parent=None):
+    def __init__(self,parent=None):        
         
         
+        # If we are doing Super Res try to open the serial comms to the LED driver
         if self.sr:
              try: 
                  self.serial = serial.Serial('COM3', 9600, timeout=0,
@@ -103,20 +106,19 @@ class Holo_Bundle(CAS_GUI_Bundle):
           
         
         # Simulated camera used this file for images
-        #self.sourceFilename = r"..\\tests\\test_data\usaf_8_back.tif"
         self.sourceFilename = r"C:\Users\AOG\Dropbox\Programming\Python\cas\tests\test_data\stack_10.tif"
         self.controlPanelSize = 220
         self.rawImageBufferSize = 20
 
-        super(Holo_Bundle, self).__init__(parent)
+        super(Holo_Bundle, self).__init__(parent)        
         
+        # Call these functions to update things based on the default GUI options
         self.handle_change_show_bundle_control(1)
-
-       
-         
         self.handle_sr_enabled()
         
+        # Set a black background on the window
         self.set_colour_scheme('black')
+
 
     
     def create_layout(self):
@@ -685,30 +687,9 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         
 if __name__ == '__main__':    
-    app=QApplication(sys.argv)
-    app.setStyle("Fusion")
     
-    # Now use a palette to switch to dark colors:
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(53, 53, 53))
-    palette.setColor(QPalette.Window, QColor(0, 0, 0))
-
-    palette.setColor(QPalette.WindowText, Qt.white)
-    palette.setColor(QPalette.Base, QColor(55, 45, 45))
-    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    palette.setColor(QPalette.ToolTipBase, Qt.black)
-    palette.setColor(QPalette.ToolTipText, Qt.white)
-    palette.setColor(QPalette.Text, Qt.white)
-    palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.Button, QColor(63, 63, 63))
-
-    palette.setColor(QPalette.ButtonText, Qt.white)
-    palette.setColor(QPalette.BrightText, Qt.red)
-    palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    palette.setColor(QPalette.HighlightedText, Qt.black)
-    app.setPalette(palette)
-       
+    app=QApplication(sys.argv)
+           
     window=Holo_Bundle()
     window.show()
     sys.exit(app.exec_())
