@@ -103,8 +103,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
           
         
         # Simulated camera used this file for images
-        self.sourceFilename = r"..\\tests\\test_data\usaf_8_back.tif"
-        self.sourceFilename = r"C:\Users\AOG\OneDrive - University of Kent\Experimental\Holography\Inline Bundle Holography\Superresolution\datasets\refs\ref1\background_stack.tif"
+        #self.sourceFilename = r"..\\tests\\test_data\usaf_8_back.tif"
+        self.sourceFilename = r"C:\Users\AOG\Dropbox\Programming\Python\cas\tests\test_data\stack_10.tif"
         self.controlPanelSize = 220
         self.rawImageBufferSize = 20
 
@@ -115,6 +115,9 @@ class Holo_Bundle(CAS_GUI_Bundle):
        
          
         self.handle_sr_enabled()
+        
+        self.set_colour_scheme('black')
+
     
     def create_layout(self):
         """ Called by parent class to assemble the GUI from Qt Widgets"""
