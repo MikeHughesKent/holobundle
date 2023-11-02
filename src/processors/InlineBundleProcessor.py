@@ -59,8 +59,33 @@ class InlineBundleProcessor(ImageProcessorThread):
               print("SR but no list of images")
               return None
            
+            
+            
+           # fig, axs = plt.subplots(2, 4, dpi=150)
+           # fig.suptitle('Raw', fontsize=16)
+           # axs[0,0].imshow(inputFrame[:,:,0])
+           # axs[0,1].imshow(inputFrame[:,:,1])
+           # axs[0,2].imshow(inputFrame[:,:,2])
+           # axs[0,3].imshow(inputFrame[:,:,3])
+           # axs[1,0].imshow(inputFrame[:,:,4])
+           # axs[1,1].imshow(inputFrame[:,:,5])
+           # axs[1,2].imshow(inputFrame[:,:,6])
+           # axs[1,3].imshow(inputFrame[:,:,7])
 
-           imgs = pybundle.SuperRes.sort_sr_stack(inputFrame, self.batchProcessNum - 1)    
+
+           imgs = pybundle.SuperRes.sort_sr_stack(inputFrame, self.batchProcessNum - 1)  
+           
+           # fig, axs = plt.subplots(2, 4, dpi=150)
+           # fig.suptitle('Sorted', fontsize=16)
+           # axs[0,0].imshow(imgs[:,:,0])
+           # axs[0,1].imshow(imgs[:,:,1])
+           # axs[0,2].imshow(imgs[:,:,2])
+           # axs[0,3].imshow(imgs[:,:,3])
+           # axs[1,0].imshow(imgs[:,:,4])
+           # axs[1,1].imshow(imgs[:,:,5])
+           # axs[1,2].imshow(imgs[:,:,6])
+
+
           
            if False:
                fig, axs = plt.subplots(2, 2)

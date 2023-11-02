@@ -20,10 +20,7 @@ as designing the layout of the GUI and creating the holography processing panel
 and the refocusing panel. Super-resolution GUI elements are also implemented
 here.
 
-@author: Mike Hughes
-Applied Optics Group
-Physics and Astronomy
-University of Kent
+@author: Mike Hughes, Applied Optics Group, Physics and Astronomy, University of Kent
 
 """
 
@@ -85,9 +82,13 @@ class Holo_Bundle(CAS_GUI_Bundle):
     
     authorName = "AOG"
     appName = "HoloBundle"
+    windowTitle = "HoloBundle"
+    logoFilename = "../res/kent_logo_2.png"
+    
     cuda = True
     srBackgrounds = None   
     sr = True
+    mosaicingEnabled = False
     
     def __init__(self,parent=None):        
         
@@ -107,6 +108,11 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         # Simulated camera used this file for images
         self.sourceFilename = r"C:\Users\AOG\Dropbox\Programming\Python\cas\tests\test_data\stack_10.tif"
+        
+        self.sourceFilename = r"..\tests\test_data\sr_test_1_background.tif"
+        self.sourceFilename = r"..\tests\test_data\sr_test_1.tif"
+
+        
         self.controlPanelSize = 220
         self.rawImageBufferSize = 20
 
@@ -119,30 +125,15 @@ class Holo_Bundle(CAS_GUI_Bundle):
         # Set a black background on the window
         self.set_colour_scheme('black')
 
+        self.exportStackDialog = ExportStackDialog()
 
     
     def create_layout(self):
         """ Called by parent class to assemble the GUI from Qt Widgets"""
         
-        self.setWindowTitle("Kent HoloBundle")       
         
-        self.outerLayout = QVBoxLayout()
-
-        self.layout = QHBoxLayout()
-        self.mainDisplayFrame = QVBoxLayout()
-        self.mosaicDisplayFrame = QVBoxLayout()
-        
-        # Create the image display widget which will show the video
-        self.mainDisplay = ImageDisplay(name = "mainDisplay")
-        self.mainDisplay.isStatusBar = True
-        self.mainDisplay.autoScale = True
-        self.mainDisplay.setMinimumWidth(500)
-          
-        # Add the camera display to a parent layout
-        self.mainDisplayFrame.addWidget(self.mainDisplay)
-                              
-        # Create the panel with main menu and camera control options (e.g. exposure)
-        self.camControlPanel = init_cam_control_panel(self, self.controlPanelSize)   
+        super().create_layout()
+        self.setWindowIcon(QtGui.QIcon('../res/icon.png'))
         
         # Add custom buttons to main menu
         self.mainMenuLoadBackBtn = QPushButton('Load Background File')
@@ -154,7 +145,6 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.mainMenuCalibrateBtn.clicked.connect(self.handle_calibrate)
         
         # Create the processing panels
-        self.bundleProcessPanel = self.init_bundle_process_panel(self.controlPanelSize)
         self.holoPanel = self.init_inline_holo_process_panel(self.controlPanelSize)
         self.refocusPanel = self.init_refocus_panel(self.controlPanelSize)
         self.srPanel = self.init_inline_holo_sr_panel(self.controlPanelSize)
@@ -167,50 +157,22 @@ class Holo_Bundle(CAS_GUI_Bundle):
         visLayout.addWidget(self.showBundleControlCheck)
         visLayout.addStretch()
         
-        # Assemble the layout
-        self.leftControl = QVBoxLayout()
-        self.leftControl.addWidget(self.camControlPanel)
-        self.leftControl.addWidget(self.refocusPanel)
-        self.layout.addLayout(self.mainDisplayFrame)
-        self.layout.addLayout(self.leftControl)
-        self.layout.addWidget(self.bundleProcessPanel)
         self.layout.addWidget(self.holoPanel)
         self.layout.addWidget(self.srPanel)
-        self.leftControl.addWidget(self.visibilityControl)
 
-        widget = QWidget()
-        widget.setLayout(self.outerLayout)
-        
-        self.outerLayout.addLayout(self.layout)
+
+        self.topLayout.insertWidget(self.topLayout.count() - 1,self.refocusPanel)
+        self.topLayout.insertWidget(self.topLayout.count() - 1,self.visibilityControl)
+      
     
-        # Add the AOG layout
-        self.logobar = QHBoxLayout()        
-        kentlogo = QLabel()
-        pixmap = QPixmap('../res/kent_logo_2.png')
-        kentlogo.setPixmap(pixmap)
-        self.logobar.addWidget(kentlogo)
-        self.outerLayout.addLayout(self.logobar)
-
-        # Set the central widget of the Window. Widget will expand
-        # to take up all the space in the window by default.
-        self.setCentralWidget(widget)
-       
-        self.setWindowIcon(QtGui.QIcon('../res/icon.png'))
-
-        # Set the central widget of the Window. Widget will expand
-        # to take up all the space in the window by default.
-        self.setCentralWidget(widget)
+        
         
         
     def init_refocus_panel(self, panelSize):
         """Create the panel with the depth slider"""
         
-        panel = QWidget()
-        panel.setLayout(topLayout:=QVBoxLayout())
-        panel.setMaximumWidth(panelSize)
-        panel.setMinimumWidth(panelSize)
+        
         groupBox = QGroupBox("Refocusing")
-        topLayout.addWidget(groupBox)
         groupBox.setLayout(layout:=QVBoxLayout())
        
         self.holoDepthSlider = QSlider(QtCore.Qt.Horizontal, objectName = 'holoDepthSlider')
@@ -229,16 +191,19 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         layout.addWidget(QLabel('Refocus depth (microns):'))
         layout.addWidget(self.holoDepthSlider)
-        layout.addWidget(self.holoDepthInput)
-        
+        layout.addWidget(self.holoDepthInput)        
         layout.addWidget(self.holoAutoFocusBtn)
 
         self.holoAutoFocusBtn.clicked.connect(self.auto_focus_click)
         self.holoDepthInput.valueChanged[float].connect(self.handle_changed_bundle_processing)
 
-        topLayout.addStretch()
+        # Export Stack
+        self.holoCreateStackBtn = QPushButton('Export Depth Stack')
+        self.holoCreateStackBtn.clicked.connect(self.create_depth_stack_click)
+        layout.addWidget(self.holoCreateStackBtn)
+
         
-        return panel    
+        return groupBox   
          
 
     def init_inline_holo_process_panel(self, panelSize):
@@ -382,6 +347,10 @@ class Holo_Bundle(CAS_GUI_Bundle):
         layout.addWidget(self.srMultiBackgroundsCheck)
         layout.addWidget(self.srMultiNormalisationCheck)
         
+        self.plotButton = QPushButton("Plot")
+        self.plotButton.clicked.connect(self.handle_plot_button)
+        layout.addWidget(self.plotButton)
+        
         topLayout.addWidget(groupBox)
         topLayout.addStretch()
       
@@ -397,9 +366,24 @@ class Holo_Bundle(CAS_GUI_Bundle):
 
         self.holoWindowThicknessInput.valueChanged[float].connect(self.handle_changed_bundle_processing)
         
-        return srPanel    
+        return srPanel   
     
     
+    
+    
+    def handle_plot_button(self, event):
+        fig, axs = plt.subplots(2, 4, dpi=150)
+        axs[0,0].imshow(self.imageProcessor.currentInputImage[:,:,0])
+        axs[0,1].imshow(self.imageProcessor.currentInputImage[:,:,1])
+        axs[0,2].imshow(self.imageProcessor.currentInputImage[:,:,2])
+        axs[0,3].imshow(self.imageProcessor.currentInputImage[:,:,3])
+        axs[1,0].imshow(self.imageProcessor.currentInputImage[:,:,4])
+        axs[1,1].imshow(self.imageProcessor.currentInputImage[:,:,5])
+        axs[1,2].imshow(self.imageProcessor.currentInputImage[:,:,6])
+
+
+
+        
     def create_processors(self):
         """ Create image processor thread"""    
         if self.imageThread is not None:
@@ -413,6 +397,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.imageProcessor.start()
         
         self.handle_changed_bundle_processing()
+        
+        
     
 
     def update_image_display(self):
@@ -426,6 +412,10 @@ class Holo_Bundle(CAS_GUI_Bundle):
            else:
                if self.currentImage is not None:
                    self.mainDisplay.set_mono_image(self.currentImage)
+                   
+                   
+                   
+                   
                    
             
     def sr_reference_click(self):
@@ -545,9 +535,12 @@ class Holo_Bundle(CAS_GUI_Bundle):
         if self.showBundleControlCheck.isChecked():
             self.bundleProcessPanel.show()
             self.holoPanel.show()
+            self.srPanel.show()
         else:  
             self.bundleProcessPanel.hide() 
             self.holoPanel.hide()
+            self.srPanel.hide()
+
     
     
     def auto_focus_click(self):
@@ -684,6 +677,69 @@ class Holo_Bundle(CAS_GUI_Bundle):
         which we might not want to if we depend on multiple frames for super-resolution"""
         if not self.srEnabledCheck.isChecked():
             super().update_file_processing()
+            
+            
+    def create_depth_stack_click(self):
+        """ Creates a depth stack over a specified range.
+        """
+        
+        if self.imageProcessor is not None and self.imageProcessor.preProcessFrame is not None:
+            if self.exportStackDialog.exec():
+                try:
+                    filename = QFileDialog.getSaveFileName(self, 'Select filename to save to:', '', filter='*.tif')[0]
+                except:
+                    filename = None
+                if filename is not None and filename != '':
+                     depthRange = (self.exportStackDialog.depthStackMinDepthInput.value() / 1000, self.exportStackDialog.depthStackMaxDepthInput.value() / 1000)
+                     nDepths = int(self.exportStackDialog.depthStackNumDepthsInput.value())
+                     QApplication.setOverrideCursor(Qt.WaitCursor)
+                     depthStack = self.imageProcessor.holo.depth_stack(self.imageProcessor.preProcessFrame, depthRange, nDepths)
+                     QApplication.restoreOverrideCursor()
+                     depthStack.write_intensity_to_tif(filename)
+        else:
+              QMessageBox.about(self, "Error", "A hologram is required to create a depth stack.") 
+
+
+
+class ExportStackDialog(QDialog):
+    """ Dialog box that appears when export depth stack is clicked."
+    """
+    
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Export Stack")
+        self.setMinimumWidth(300)
+
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.layout = QVBoxLayout()
+        self.depthStackMinDepthInput = QDoubleSpinBox()
+        self.depthStackMinDepthInput.setMaximum(10**6)
+        self.depthStackMinDepthInput.setValue(0)
+        self.depthStackMaxDepthInput = QDoubleSpinBox()
+        self.depthStackMaxDepthInput.setMaximum(10**6)
+        self.depthStackMaxDepthInput.setValue(1)
+
+        self.depthStackNumDepthsInput = QSpinBox()
+        self.depthStackNumDepthsInput.setMaximum(10**6)
+        self.depthStackNumDepthsInput.setValue(10)
+
+        self.layout.addWidget(QLabel("Start Depth (mm):"))
+        self.layout.addWidget(self.depthStackMinDepthInput)
+        self.layout.addWidget(QLabel("End Depth (mm):"))
+        self.layout.addWidget(self.depthStackMaxDepthInput)
+        self.layout.addWidget(QLabel("Number of Depths:"))
+        self.layout.addWidget(self.depthStackNumDepthsInput)
+        
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+        
+
         
         
 if __name__ == '__main__':    
