@@ -165,7 +165,14 @@ class InlineBundleProcessor(ImageProcessorThread):
               # SR Calibration
               self.pyb.set_sr_calib_images(calibImgs)
               self.pyb.calibrate_sr()
-    
+   
+    def capture_sr_shift(self):
+        return pybundle.SuperRes.sort_sr_stack(self.currentInputImage, self.batchProcessNum - 1)    
+        
+        
+        
+        
+        
     #def acquire_sr_backgrounds(self):
     #    backImgs = pybundle.SuperRes.sort_sr_stack(self.currentInputImage, self.batchProcessNum - 1)    
     

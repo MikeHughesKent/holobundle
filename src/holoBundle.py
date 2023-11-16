@@ -89,6 +89,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
     srBackgrounds = None   
     sr = True
     mosaicingEnabled = False
+    sr_single_led_id = 1  
     
     def __init__(self,parent=None):        
         
@@ -120,13 +121,20 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         # Call these functions to update things based on the default GUI options
         self.handle_change_show_bundle_control(1)
+        self.handle_sr_clear_shifts()
         self.handle_sr_enabled()
         
         # Set a black background on the window
         self.set_colour_scheme('black')
 
+
         self.exportStackDialog = ExportStackDialog()
 
+        #self.load_background()
+        #self.handle_load_calibration()
+       # self.handle_load_sr_background()
+
+        
     
     def create_layout(self):
         """ Called by parent class to assemble the GUI from Qt Widgets"""
@@ -326,7 +334,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         self.srAcquireBackgroundsBtn=QPushButton('Acquire SR Background')
         self.srSaveBackgroundsBtn=QPushButton('Save SR Background')
-        self.srLoadBackgroundsBtn=QPushButton('Load SR Background')        
+        self.srLoadBackgroundsBtn=QPushButton('Load SR Background') 
+        
         
         self.srNumShiftsInput = QSpinBox(objectName='srNumShiftsInput')
         self.srNumShiftsInput.setMaximum(10**6)
@@ -334,6 +343,20 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.srNumShiftsInput.setKeyboardTracking(False)
         self.srMultiBackgroundsCheck = QCheckBox('Use Background Stack', objectName = 'srMultiBackgrounds')
         self.srMultiNormalisationCheck = QCheckBox('Use Normalisation Stack', objectName = 'srMultiNormalisation')
+        self.srCaptureShiftBtn = QPushButton('Capture Shift')
+        self.srGenerateLUTBtn = QPushButton('Generate Calibration LUT')
+        self.srUseLUTCheck = QCheckBox('Use Calibration LUT')
+        self.srLUTMinInput = QDoubleSpinBox(objectName = 'srLUTMinInput')
+        self.srLUTMinInput.setMaximum(10000)
+        self.srLUTMaxInput = QDoubleSpinBox(objectName = 'srLUTMaxInput')
+        self.srLUTMaxInput.setMaximum(10000)
+        self.srLUTNumStepsInput = QSpinBox(objectName = 'srLUTNumStepsInput')
+        self.srLUTMinInput.setMaximum(1000)
+
+        self.srSaveCalibrationLUTBtn=QPushButton('Save Calibration LUT')
+        self.srLoadCalibrationLUTBtn=QPushButton('Load Calibration LUT') 
+
+
         
         layout.addWidget(self.srCalibBtn)
         layout.addWidget(self.srEnabledCheck)
@@ -346,10 +369,25 @@ class Holo_Bundle(CAS_GUI_Bundle):
         layout.addWidget(self.srLoadBackgroundsBtn)
         layout.addWidget(self.srMultiBackgroundsCheck)
         layout.addWidget(self.srMultiNormalisationCheck)
+        layout.addWidget(self.srUseLUTCheck)
+        layout.addWidget(self.srCaptureShiftBtn)
+
+        layout.addWidget(self.srGenerateLUTBtn)
+        
+        layout.addWidget(QLabel('LUT Min Depth (microns):'))
+        layout.addWidget(self.srLUTMinInput)
+        layout.addWidget(QLabel('LUT Max Depth (microns):'))
+        layout.addWidget(self.srLUTMaxInput)
+        layout.addWidget(QLabel('LUT Num Steps:'))
+        layout.addWidget(self.srLUTNumStepsInput)
+        layout.addWidget(self.srSaveCalibrationLUTBtn)
+        layout.addWidget(self.srLoadCalibrationLUTBtn)
+        
+        
         
         self.plotButton = QPushButton("Plot")
         self.plotButton.clicked.connect(self.handle_plot_button)
-        layout.addWidget(self.plotButton)
+        #layout.addWidget(self.plotButton)
         
         topLayout.addWidget(groupBox)
         topLayout.addStretch()
@@ -363,8 +401,16 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.srLoadBackgroundsBtn.clicked.connect(self.handle_load_sr_background)
         self.srMultiBackgroundsCheck.stateChanged.connect(self.handle_changed_bundle_processing)
         self.srMultiNormalisationCheck.stateChanged.connect(self.handle_changed_bundle_processing)
-
+        self.srUseLUTCheck.stateChanged.connect(self.handle_changed_bundle_processing)
+        
         self.holoWindowThicknessInput.valueChanged[float].connect(self.handle_changed_bundle_processing)
+        self.srGenerateLUTBtn.clicked.connect(self.handle_sr_generate_LUT)
+        self.srCaptureShiftBtn.clicked.connect(self.handle_sr_capture_shift)
+        
+        self.srSaveCalibrationLUTBtn.clicked.connect(self.handle_sr_save_calibration_lut)
+        self.srLoadCalibrationLUTBtn.clicked.connect(self.handle_sr_load_calibration_lut)
+
+        
         
         return srPanel   
     
@@ -418,13 +464,9 @@ class Holo_Bundle(CAS_GUI_Bundle):
                    
                    
             
-    def sr_reference_click(self):
-        """Make the current image the reference image for super-resolution"""
-        self.srReferenceImage = self.currentProcessedImage         
-            
     
     def handle_changed_bundle_processing(self):   
-        """Called when chanes are made to the options pane. Updates the processor thread"""
+        """Called when changes are made to the options pane. Updates the processor thread."""
         
         # Check the slider matches the input box value and the max value is correct
         self.holoDepthSlider.setValue(int(self.holoDepthInput.value()))
@@ -479,6 +521,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.update_file_processing()
 
             if self.srEnabledCheck.isChecked():
+                
                 self.imageProcessor.sr = True
                 self.imageProcessor.pyb.set_super_res(True)
                 self.imageProcessor.pyb.set_sr_backgrounds(self.srBackgrounds)
@@ -486,6 +529,9 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.imageProcessor.pyb.set_sr_multi_normalisation(self.srMultiNormalisationCheck.isChecked())
                 self.imageProcessor.pyb.set_sr_multi_backgrounds(self.srMultiBackgroundsCheck.isChecked())
                 self.imageProcessor.set_batch_process_num(self.srNumShiftsInput.value() + 1)
+                self.imageProcessor.pyb.set_sr_use_lut(self.srUseLUTCheck.isChecked())
+                self.imageProcessor.pyb.set_sr_param_value(self.holoDepthInput.value()/ 10**6)
+
                 if self.imageThread is not None:
                     self.imageThread.set_num_removal_when_full(self.srNumShiftsInput.value() + 1)
                 self.update_file_processing()
@@ -526,7 +572,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                   self.serial.write(b'm')
               if mode == SINGLE:
                   print("writing single")
-                  self.serial.write(b's1\n')   
+                  self.serial.write(b's' + str(self.sr_single_led_id) + '\n')   
                   
                   
     def handle_change_show_bundle_control(self, event):
@@ -571,6 +617,66 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.holoDepthInput.setValue(int(self.holoDepthSlider.value()))
         
         
+    def handle_sr_generate_LUT(self):
+        """ Called when SR Generate LUT button is clicked.
+        """
+        param_depths = np.array(self.sr_param_depths)
+        param_holograms = np.stack(self.sr_param_holograms, axis = 3)
+        
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+       
+        if self.imageThread is not None: self.imageThread.pause() 
+        if self.imageProcessor is not None: self.imageProcessor.pause()
+               
+        #t1 = time.perf_counter()
+        self.srParamShiftCalib = pybundle.SuperRes.calib_param_shift(param_depths, param_holograms, self.imageProcessor.pyb.calibration, forceZero = True)
+        self.imageProcessor.pyb.set_calib_image(self.backgroundImage)
+        self.imageProcessor.pyb.calibrate_sr_lut(self.srParamShiftCalib, (self.srLUTMinInput.value() / 10**6, self.srLUTMaxInput.value() / 10**6), self.srLUTNumStepsInput.value())
+        #print(f"LUT took {time.perf_counter() -t1} to build.")
+        
+        if self.imageThread is not None: self.imageThread.resume()
+        if self.imageProcessor is not None: self.imageProcessor.resume()
+        QApplication.restoreOverrideCursor()
+        
+        
+        
+        
+    def handle_sr_capture_shift(self):
+        """
+        """
+        if self.imageProcessor.pyb.calibration is None:
+            QMessageBox.about(self, "Error", "Shift measurement requires an interpolation calibration.")  
+            return
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.sr_param_holograms.append(self.imageProcessor.capture_sr_shift())
+        self.sr_param_depths.append(self.imageProcessor.holo.depth)
+        QApplication.restoreOverrideCursor()
+
+    
+   
+    def handle_sr_clear_shifts(self):
+        """
+        """
+        self.sr_param_holograms = []
+        self.sr_param_depths = []
+
+
+
+    def handle_sr_save_calibration_lut(self):  
+        with open('sr_calib_lut.dat','wb') as pickleFile:
+            pickle.dump(self.imageProcessor.pyb.srCalibrationLUT, pickleFile)
+
+    
+        
+        
+    def handle_sr_load_calibration_lut(self):  
+        with open('sr_calib_lut.dat', 'rb') as pickleFile:
+            self.imageProcessor.pyb.srCalibrationLUT = pickle.load(pickleFile)
+        self.handle_changed_bundle_processing()  
+        print(self.imageProcessor.pyb.srCalibrationLUT)
+        
+        
+        
     def handle_sr_calibrate_click(self): 
         """ Called when SR Calibrate is clicked, flage the imageProcessor to
         calibrate once images are available
@@ -587,8 +693,12 @@ class Holo_Bundle(CAS_GUI_Bundle):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             self.imageProcessor.pyb.set_calib_image(self.backgroundImage)
             self.imageProcessor.calibrate_sr()
-            QApplication.restoreOverrideCursor()
             
+            # We also do a conventional calibration at the same time
+            self.imageProcessor.pyb.calibrate()            
+            QApplication.restoreOverrideCursor()
+        
+        self.handle_changed_bundle_processing()    
             
     def handle_save_sr_calib(self):
         """ Saves SR calibration to a file"""
@@ -630,6 +740,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.dataset.close() 
         
         self.srBackgrounds = imageBuffer
+        self.backgroundImage = self.srBackgrounds[:,:,self.sr_single_led_id]
         self.handle_changed_bundle_processing()
         
         
@@ -638,6 +749,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         """
         if self.imageProcessor is not None and self.srEnabledCheck.isChecked():
             self.srBackgrounds = pybundle.SuperRes.sort_sr_stack(self.imageProcessor.currentInputImage, self.imageProcessor.batchProcessNum - 1)    
+            self.backgroundImage = self.srBackgrounds[:,:,self.sr_single_led_id]
             self.handle_changed_bundle_processing()
             
             
