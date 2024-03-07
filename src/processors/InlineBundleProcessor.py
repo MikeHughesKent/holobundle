@@ -2,7 +2,7 @@
 """
 Kent-CAS: Camera Acquisition System
 
-Threading class for image processing of fibre bundle inline holography images. This
+Class for image processing of fibre bundle inline holography images. This
 inherits from ImageProcessorThread which contains core functionality. 
 
 @author: Mike Hughes
@@ -41,6 +41,7 @@ class InlineBundleProcessor(ImageProcessorThread):
     showPhase = False
     sr = False
     batchProcessNum = 1
+    differential = False
     
     def __init__(self, inBufferSize, outBufferSize, **kwargs):
         
@@ -51,7 +52,7 @@ class InlineBundleProcessor(ImageProcessorThread):
                 
     def process_frame(self, inputFrame):
         """ This is called by the thread whenever a frame needs to be processed"""
-  
+        outputFrame = None
         if self.sr == True:
            # Check we have a list of images, otherwise return None
 
@@ -99,19 +100,29 @@ class InlineBundleProcessor(ImageProcessorThread):
  
            if imgs is not None:
                outputFrame =  self.pyb.process(imgs)   
-               self.preProcessFrame = outputFrame
         
         
-        else:   # Not Superresolution
-           
-           # In case we have a list of images instead of an image 
+        elif self.differential:   # Differential Mode
+            print(inputFrame.ndim)
+            if inputFrame.ndim == 3:
+                if np.shape(inputFrame)[2] == 2:
+                    print("proc diff")
+                    outputFrame = inputFrame[:,:,0] - inputFrame[:,:,1]
+                    outputFrame = self.pyb.process(outputFrame)
+                    self.preProcessFrame = outputFrame
+
+
+        else:   # Standard Mode
+            # In case we have a list of images instead of an image 
             #if inputFrame.__class__ == list:
             #    inputFrame = inputFrame[0]
             if inputFrame.ndim == 3:
                 inputFrame = inputFrame[:,:,0]
-            outputFrame =  self.pyb.process(inputFrame)
+            outputFrame = self.pyb.process(inputFrame)
            
             self.preProcessFrame = outputFrame
+            
+            
     
         if self.refocus == True and outputFrame is not None:
             outputFrame = self.holo.process(outputFrame)
@@ -146,6 +157,11 @@ class InlineBundleProcessor(ImageProcessorThread):
                 self.calibrate_sr()
                 # Remove flag
                 self.srCalibrateFlag = False
+                
+                
+    def set_differential(self, isDifferential):
+        self.differential = isDifferential
+            
                     
     def calibrate_sr(self):
         

@@ -83,6 +83,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
     sr = True
     mosaicingEnabled = False
     sr_single_led_id = 1  
+    serial = None
     
     def __init__(self,parent=None):        
         
@@ -103,9 +104,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
           
         
         # Simulated camera used this file for images
-        self.sourceFilename = r"C:\Users\AOG\Dropbox\Programming\Python\cas\tests\test_data\stack_10.tif"
-        self.sourceFilename = r"..\tests\test_data\sr_test_1_background.tif"
-        self.sourceFilename = r"..\tests\test_data\sr_test_1.tif"
+        self.sourceFilename = r"C:\Users\mrh40\Dropbox\Programming\Python\holoBundle\tests\test_data\sr_test_1.tif"
      
         self.rawImageBufferSize = 20
 
@@ -165,11 +164,13 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.refocusTitle.setProperty("subheader", "true")
         self.refocusTitle.setStyleSheet("QLabel{padding:5px}")
         self.holoLongDepthSlider.setStyleSheet("QSlider{padding:20px}")
-        self.longFocusWidgetLayout.addWidget( self.holoLongDepthSlider, alignment=QtCore.Qt.AlignHCenter)
+        self.longFocusWidgetLayout.addWidget(self.holoLongDepthSlider, alignment=QtCore.Qt.AlignHCenter)
         self.contentLayout.addWidget(self.longFocusWidget) 
         self.longFocusWidgetLayout.addWidget(QLabel('Depth, \u03bcm'),alignment=QtCore.Qt.AlignHCenter)
         self.longFocusWidgetLayout.addWidget(self.holoDepthInput)  
         self.longFocusWidget.setStyleSheet("QWidget{padding:0px; margin:0px;background-color:rgba(30, 30, 60, 255)}")
+        self.holoDepthInput.setMaximumWidth(90)
+
         self.holoDepthInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoDepthInput.setStyleSheet("QDoubleSpinBox{padding: 5px; background-color: rgba(255, 255, 255, 255); color: black; font-size:9pt}")
         self.holoLongDepthSlider.valueChanged[int].connect(self.long_depth_slider_changed)       
@@ -189,6 +190,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         widget, layout = self.panel_helper(title = "Holography Settings")
         
         self.holoRefocusCheck = QCheckBox("Refocus", objectName='holoRefocusCheck')
+        self.holoDifferentialCheck = QCheckBox("Differential", objectName='holoDifferentialCheck')
         self.holoPhaseCheck = QCheckBox("Show Phase", objectName='holoPhaseCheck')
         self.holoInvertCheck = QCheckBox("Invert Image", objectName='holoInvertCheck')
         
@@ -231,7 +233,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
       
         layout.addWidget(self.holoRefocusCheck)
         layout.addWidget(self.holoPhaseCheck)
-        layout.addWidget(self.holoInvertCheck)                
+        layout.addWidget(self.holoInvertCheck)    
+        layout.addWidget(self.holoDifferentialCheck)           
         
         layout.addWidget(QLabel('Wavelegnth (microns):'))
         layout.addWidget(self.holoWavelengthInput)
@@ -273,6 +276,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.holoPixelSizeInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoRefocusCheck.stateChanged.connect(self.processing_options_changed)
         self.holoPhaseCheck.stateChanged.connect(self.processing_options_changed)
+        self.holoDifferentialCheck.stateChanged.connect(self.processing_options_changed)
         self.holoInvertCheck.stateChanged.connect(self.processing_options_changed)
         self.holoWindowThicknessInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoWindowCombo.currentIndexChanged[int].connect(self.processing_options_changed)
@@ -474,6 +478,14 @@ class Holo_Bundle(CAS_GUI_Bundle):
             if targetPixelSize != self.imageProcessor.holo.pixelSize:
                 self.imageProcessor.holo.set_pixel_size(targetPixelSize)
                 self.update_file_processing()
+                
+                
+            
+            else:
+                self.imageProcessor.set_batch_process_num(1)
+                self.imageProcessor.set_differential(False)
+                
+
 
             if self.srEnabledCheck.isChecked():
                 
@@ -490,10 +502,18 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 if self.imageThread is not None:
                     self.imageThread.set_num_removal_when_full(self.srNumShiftsInput.value() + 1)
                 self.update_file_processing()
+            elif self.holoDifferentialCheck.isChecked():
+                self.imageProcessor.set_batch_process_num(2)
+                self.imageProcessor.set_differential(True)
+                self.imageProcessor.sr = False
+                self.imageProcessor.pyb.set_super_res(False)
+                self.update_file_processing()
+
             else:
                 self.imageProcessor.sr = False
                 self.imageProcessor.pyb.set_super_res(False)
                 self.imageProcessor.set_batch_process_num(1)
+                self.imageProcessor.set_differential(False)
                 self.update_file_processing()
 
 
@@ -527,7 +547,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                   self.serial.write(b'm')
               if mode == SINGLE:
                   print("writing single")
-                  self.serial.write(b's' + str(self.sr_single_led_id) + '\n')   
+                  self.serial.write(b's' + bytes(str(self.sr_single_led_id) + '\n'))   
                   
       
     
@@ -693,7 +713,6 @@ class Holo_Bundle(CAS_GUI_Bundle):
     def apply_default_settings(self):
         """Applies hard-coded default settings. These will then be saved on program
         exit. """
-        
         self.camSourceCombo.setCurrentIndex(0)
         self.bundleCentreXInput.setValue(500)
         self.bundleCentreYInput.setValue(500)
