@@ -56,8 +56,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../pyholoscope/src
 from CAS_GUI_Base import CAS_GUI
 from CAS_GUI_Bundle import CAS_GUI_Bundle
 from image_display import ImageDisplay
+
 from ImageAcquisitionThread import ImageAcquisitionThread
-from InlineBundleProcessor import InlineBundleProcessor
+from ImageProcessorThread import ImageProcessorThread
+from InlineBundleProcessorClass import InlineBundleProcessorClass
 
 import pyholoscope
 
@@ -78,7 +80,11 @@ class Holo_Bundle(CAS_GUI_Bundle):
     logoFilename = "../res/kent_logo_2.png"
     resPath = "../../cas/res"
     
+    processor = InlineBundleProcessorClass
+    
+    multicore = False    
     cuda = True
+    
     srBackgrounds = None   
     sr = True
     mosaicingEnabled = False
@@ -87,8 +93,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
     
     def __init__(self,parent=None):        
         
-        super(Holo_Bundle, self).__init__(parent)  
-      
+        super(Holo_Bundle, self).__init__(parent)        
+        
 
         # If we are doing Super Res try to open the serial comms to the LED driver
         if self.sr:
@@ -393,19 +399,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         axs[1,2].imshow(self.imageProcessor.currentInputImage[:,:,6])
 
         
-    def create_processors(self):
-        """ Create image processor thread"""    
-        if self.imageThread is not None:
-            inputQueue = self.imageThread.get_image_queue()
-        else:
-            inputQueue = None   # This will force Processor to create its own input queue
-        
-        if self.imageProcessor is None:
-            self.imageProcessor = InlineBundleProcessor(10,10, inputQueue = inputQueue, acquisitionLock = self.acquisitionLock)
-            if self.imageProcessor is not None:
-                self.imageProcessor.start()
-        
-        self.processing_options_changed()        
+  
         
     
 
@@ -432,31 +426,31 @@ class Holo_Bundle(CAS_GUI_Bundle):
 
         # Holography specific processing
         if self.imageProcessor is not None:
-            self.imageProcessor.showPhase = self.holoPhaseCheck.isChecked()
-            self.imageProcessor.invert = self.holoInvertCheck.isChecked()
-            self.imageProcessor.holo.cuda = self.cuda   
+            self.imageProcessor.get_processor().showPhase = self.holoPhaseCheck.isChecked()
+            self.imageProcessor.get_processor().invert = self.holoInvertCheck.isChecked()
+            self.imageProcessor.get_processor().holo.cuda = self.cuda   
             if self.holoRefocusCheck.isChecked():
                 
-                self.imageProcessor.refocus = True
+                self.imageProcessor.get_processor().refocus = True
                 
                 # Wavelength
-                if self.holoWavelengthInput.value() != self.imageProcessor.holo.wavelength / 10**6:
-                    self.imageProcessor.holo.set_wavelength(self.holoWavelengthInput.value()/ 10**6)
+                if self.holoWavelengthInput.value() != self.imageProcessor.get_processor().holo.wavelength / 10**6:
+                    self.imageProcessor.get_processor().holo.set_wavelength(self.holoWavelengthInput.value()/ 10**6)
                 
                 # Depth
-                if self.holoDepthInput.value() != self.imageProcessor.holo.depth / 10**6:
-                    self.imageProcessor.holo.set_depth(self.holoDepthInput.value()/ 10**6)
+                if self.holoDepthInput.value() != self.imageProcessor.get_processor().holo.depth / 10**6:
+                    self.imageProcessor.get_processor().holo.set_depth(self.holoDepthInput.value()/ 10**6)
                 
                 # Windowing
                 if self.holoWindowCombo.currentText() == "Circular":
-                    self.imageProcessor.holo.set_auto_window(True)
-                    self.imageProcessor.holo.set_window_shape('circle')                    
-                    self.imageProcessor.holo.set_window_radius(None)
-                    self.imageProcessor.holo.set_window_thickness(self.holoWindowThicknessInput.value())
+                    self.imageProcessor.get_processor().holo.set_auto_window(True)
+                    self.imageProcessor.get_processor().holo.set_window_shape('circle')                    
+                    self.imageProcessor.get_processor().holo.set_window_radius(None)
+                    self.imageProcessor.get_processor().holo.set_window_thickness(self.holoWindowThicknessInput.value())
                 else:
-                    self.imageProcessor.holo.window = None
+                    self.imageProcessor.get_processor().holo.window = None
             else:
-                self.imageProcessor.refocus = False
+                self.imageProcessor.get_processor().refocus = False
         
         # The basic bundle processing is defined in CAS_GUI_Bundle
         super().processing_options_changed()
@@ -468,53 +462,55 @@ class Holo_Bundle(CAS_GUI_Bundle):
         # updated the pixel size
         
         if self.imageProcessor is not None:
-            scaleFactor = self.imageProcessor.pyb.get_pixel_scale() 
+            scaleFactor = self.imageProcessor.get_processor().pyb.get_pixel_scale() 
             if scaleFactor is not None:
-                targetPixelSize = self.imageProcessor.pyb.get_pixel_scale() * self.holoPixelSizeInput.value() / 10**6
+                targetPixelSize = self.imageProcessor.get_processor().pyb.get_pixel_scale() * self.holoPixelSizeInput.value() / 10**6
             else:
                 targetPixelSize = self.holoPixelSizeInput.value() / 10**6
             self.adjustedPixelSizeLabel.setText("Adjusted Pixel Size: " + str(round(targetPixelSize * 10**6,2)) + "microns" )
 
-            if targetPixelSize != self.imageProcessor.holo.pixelSize:
-                self.imageProcessor.holo.set_pixel_size(targetPixelSize)
+            if targetPixelSize != self.imageProcessor.get_processor().holo.pixelSize:
+                self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
                 self.update_file_processing()
                 
                 
             
             else:
                 self.imageProcessor.set_batch_process_num(1)
-                self.imageProcessor.set_differential(False)
+                self.imageProcessor.get_processor().set_differential(False)
                 
 
 
             if self.srEnabledCheck.isChecked():
                 
-                self.imageProcessor.sr = True
-                self.imageProcessor.pyb.set_super_res(True)
-                self.imageProcessor.pyb.set_sr_backgrounds(self.srBackgrounds)
-                self.imageProcessor.pyb.set_sr_normalisation_images(self.srBackgrounds)
-                self.imageProcessor.pyb.set_sr_multi_normalisation(self.srMultiNormalisationCheck.isChecked())
-                self.imageProcessor.pyb.set_sr_multi_backgrounds(self.srMultiBackgroundsCheck.isChecked())
-                self.imageProcessor.set_batch_process_num(self.srNumShiftsInput.value() + 1)
-                self.imageProcessor.pyb.set_sr_use_lut(self.srUseLUTCheck.isChecked())
-                self.imageProcessor.pyb.set_sr_param_value(self.holoDepthInput.value()/ 10**6)
+                self.imageProcessor.get_processor().sr = True
+                self.imageProcessor.get_processor().pyb.set_super_res(True)
+                self.imageProcessor.get_processor().pyb.set_sr_backgrounds(self.srBackgrounds)
+                self.imageProcessor.get_processor().pyb.set_sr_normalisation_images(self.srBackgrounds)
+                self.imageProcessor.get_processor().pyb.set_sr_multi_normalisation(self.srMultiNormalisationCheck.isChecked())
+                self.imageProcessor.get_processor().pyb.set_sr_multi_backgrounds(self.srMultiBackgroundsCheck.isChecked())
+                self.imageProcessor.get_processor().set_batch_process_num(self.srNumShiftsInput.value() + 1)
+                self.imageProcessor.get_processor().pyb.set_sr_use_lut(self.srUseLUTCheck.isChecked())
+                self.imageProcessor.get_processor().pyb.set_sr_param_value(self.holoDepthInput.value()/ 10**6)
 
                 if self.imageThread is not None:
                     self.imageThread.set_num_removal_when_full(self.srNumShiftsInput.value() + 1)
                 self.update_file_processing()
             elif self.holoDifferentialCheck.isChecked():
-                self.imageProcessor.set_batch_process_num(2)
-                self.imageProcessor.set_differential(True)
-                self.imageProcessor.sr = False
-                self.imageProcessor.pyb.set_super_res(False)
+                self.imageProcessor.get_processor().set_batch_process_num(2)
+                self.imageProcessor.get_processor().set_differential(True)
+                self.imageProcessor.get_processor().sr = False
+                self.imageProcessor.get_processor().pyb.set_super_res(False)
                 self.update_file_processing()
 
             else:
-                self.imageProcessor.sr = False
-                self.imageProcessor.pyb.set_super_res(False)
+                self.imageProcessor.get_processor().sr = False
+                self.imageProcessor.get_processor().pyb.set_super_res(False)
                 self.imageProcessor.set_batch_process_num(1)
-                self.imageProcessor.set_differential(False)
+                self.imageProcessor.get_processor().set_differential(False)
                 self.update_file_processing()
+
+            self.imageProcessor.update_settings()
 
 
     def handle_sr_enabled(self):        
@@ -606,8 +602,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
             QMessageBox.about(self, "Error", "Shift measurement requires an interpolation calibration.")  
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        self.sr_param_holograms.append(self.imageProcessor.capture_sr_shift())
-        self.sr_param_depths.append(self.imageProcessor.holo.depth)
+        self.sr_param_holograms.append(self.imageProcessor.get_processor().capture_sr_shift())
+        self.sr_param_depths.append(self.imageProcessor.get_processor().holo.depth)
         QApplication.restoreOverrideCursor()
 
     
@@ -760,7 +756,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                      depthRange = (self.exportStackDialog.depthStackMinDepthInput.value() / 1000, self.exportStackDialog.depthStackMaxDepthInput.value() / 1000)
                      nDepths = int(self.exportStackDialog.depthStackNumDepthsInput.value())
                      QApplication.setOverrideCursor(Qt.WaitCursor)
-                     depthStack = self.imageProcessor.holo.depth_stack(self.imageProcessor.preProcessFrame, depthRange, nDepths)
+                     depthStack = self.imageProcessor.get_processor().holo.depth_stack(self.imageProcessor.preProcessFrame, depthRange, nDepths)
                      QApplication.restoreOverrideCursor()
                      depthStack.write_intensity_to_tif(filename)
         else:

@@ -2,7 +2,7 @@
 """
 Kent-CAS: Camera Acquisition System
 
-Class for image processing of fibre bundle inline holography images. This
+Threading class for image processing of fibre bundle inline holography images. This
 inherits from ImageProcessorThread which contains core functionality. 
 
 @author: Mike Hughes
