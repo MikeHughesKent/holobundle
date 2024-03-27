@@ -45,21 +45,17 @@ from PyQt5.QtGui import QIcon, QPalette, QColor, QImage, QPixmap, QPainter, QPen
 from PyQt5.QtGui import QPainter, QBrush, QPen
 
 file_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, 'processors')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/widgets')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/cameras')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../cas/src/threads')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../pyfibrebundle/src')))
-sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '../../pyholoscope/src')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '..\..\cas\src')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '..\..\pyholoscope\src')))
+sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '..\..\pyfibrebundle\src')))
 
-from CAS_GUI_Base import CAS_GUI
-from CAS_GUI_Bundle import CAS_GUI_Bundle
-from image_display import ImageDisplay
 
-from ImageAcquisitionThread import ImageAcquisitionThread
-from ImageProcessorThread import ImageProcessorThread
-from InlineBundleProcessorClass import InlineBundleProcessorClass
+
+
+from cas_gui.base import CAS_GUI
+from cas_gui.subclasses.cas_bundle import CAS_GUI_Bundle
+
+from processors.inline_bundle_processor_class import InlineBundleProcessorClass
 
 import pyholoscope
 
@@ -82,9 +78,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
     
     processor = InlineBundleProcessorClass
     
-    multicore = False    
-    cuda = True
-    
+    multicore = True   
+    cuda = True    
     srBackgrounds = None   
     sr = True
     mosaicingEnabled = False
@@ -163,6 +158,10 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.longFocusWidget.setContentsMargins(0,0,0,0)
         self.longFocusWidgetLayout = QVBoxLayout()
         self.longFocusWidget.setLayout(self.longFocusWidgetLayout)
+        self.longFocusWidget.setMinimumWidth(190)
+        self.longFocusWidget.setMaximumWidth(190)
+        
+        
         self.holoLongDepthSlider = QSlider(QtCore.Qt.Vertical, objectName = 'longHoloDepthSlider')
         self.holoLongDepthSlider.setInvertedAppearance(True)
         self.refocusTitle = QLabel("Refocus")
@@ -173,11 +172,11 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.longFocusWidgetLayout.addWidget(self.holoLongDepthSlider, alignment=QtCore.Qt.AlignHCenter)
         self.contentLayout.addWidget(self.longFocusWidget) 
         self.longFocusWidgetLayout.addWidget(QLabel('Depth, \u03bcm'),alignment=QtCore.Qt.AlignHCenter)
-        self.longFocusWidgetLayout.addWidget(self.holoDepthInput)  
+        self.longFocusWidgetLayout.addWidget(self.holoDepthInput,alignment=QtCore.Qt.AlignHCenter)  
         self.longFocusWidget.setStyleSheet("QWidget{padding:0px; margin:0px;background-color:rgba(30, 30, 60, 255)}")
         self.holoDepthInput.setMaximumWidth(90)
 
-        self.holoDepthInput.valueChanged[float].connect(self.processing_options_changed)
+        self.holoDepthInput.valueChanged[float].connect(self.holo_depth_changed)
         self.holoDepthInput.setStyleSheet("QDoubleSpinBox{padding: 5px; background-color: rgba(255, 255, 255, 255); color: black; font-size:9pt}")
         self.holoLongDepthSlider.valueChanged[int].connect(self.long_depth_slider_changed)       
         self.holoLongDepthSlider.setTickPosition(QSlider.TicksBelow)
@@ -511,6 +510,15 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.update_file_processing()
 
             self.imageProcessor.update_settings()
+
+
+    def holo_depth_changed(self):
+        if self.imageProcessor is not None:
+            if self.holoDepthInput.value() != self.imageProcessor.get_processor().holo.depth / 10**6:
+                self.imageProcessor.get_processor().holo.set_depth(self.holoDepthInput.value()/ 10**6)
+                self.update_file_processing()
+                self.imageProcessor.pipe_message('set_depth', self.holoDepthInput.value()/ 10**6)
+                #self.imageProcessor.update_settings()
 
 
     def handle_sr_enabled(self):        

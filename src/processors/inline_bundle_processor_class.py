@@ -17,7 +17,7 @@ import logging
 import numpy as np
 import time
 
-from ImageProcessorClass import ImageProcessorClass
+from cas_gui.threads.image_processor_class import ImageProcessorClass
 
 import pybundle
 from pybundle import PyBundle
@@ -139,7 +139,9 @@ class InlineBundleProcessorClass(ImageProcessorClass):
             
         return outputFrame
 
-
+    def message(self, message, parameter):
+        if message == "set_depth":
+            self.holo.set_depth(parameter)
 
     def handle_flags(self):
         """ Flags can be set externally for actions which cannot be performed
