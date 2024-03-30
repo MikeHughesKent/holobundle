@@ -78,7 +78,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
     
     processor = InlineBundleProcessorClass
     
-    multicore = True   
+    multiCore = True   
+    sharedMemory = True
     cuda = True    
     srBackgrounds = None   
     sr = True
@@ -551,7 +552,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                   self.serial.write(b'm')
               if mode == SINGLE:
                   print("writing single")
-                  self.serial.write(b's' + bytes(str(self.sr_single_led_id) + '\n'))   
+                  self.serial.write(('s' + str(self.sr_single_led_id) + '\n').encode('utf_8'))   
                   
       
     
