@@ -50,8 +50,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '..\..\pyholoscope\src
 sys.path.insert(0, os.path.abspath(os.path.join(file_dir, '..\..\pyfibrebundle\src')))
 
 
-
-
 from cas_gui.base import CAS_GUI
 from cas_gui.subclasses.cas_bundle import CAS_GUI_Bundle
 
@@ -115,9 +113,18 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.handle_sr_enabled()
         
         self.exportStackDialog = ExportStackDialog()
+        try:
+            self.load_background()
+        except:
+            pass
+        
+        try:
+            self.load_calibration()
+        except:
+            pass
+        
 
  
-        
     
     def create_layout(self):
         """ Called by parent class to assemble the GUI from Qt Widgets"""
@@ -472,15 +479,11 @@ class Holo_Bundle(CAS_GUI_Bundle):
             if targetPixelSize != self.imageProcessor.get_processor().holo.pixelSize:
                 self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
                 self.update_file_processing()
-                
-                
             
             else:
                 self.imageProcessor.set_batch_process_num(1)
                 self.imageProcessor.get_processor().set_differential(False)
                 
-
-
             if self.srEnabledCheck.isChecked():
                 
                 self.imageProcessor.get_processor().sr = True
@@ -496,8 +499,9 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 if self.imageThread is not None:
                     self.imageThread.set_num_removal_when_full(self.srNumShiftsInput.value() + 1)
                 self.update_file_processing()
+                
             elif self.holoDifferentialCheck.isChecked():
-                self.imageProcessor.get_processor().set_batch_process_num(2)
+                self.imageProcessor.set_batch_process_num(2)
                 self.imageProcessor.get_processor().set_differential(True)
                 self.imageProcessor.get_processor().sr = False
                 self.imageProcessor.get_processor().pyb.set_super_res(False)
@@ -519,7 +523,6 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.imageProcessor.get_processor().holo.set_depth(self.holoDepthInput.value()/ 10**6)
                 self.update_file_processing()
                 self.imageProcessor.pipe_message('set_depth', self.holoDepthInput.value()/ 10**6)
-                #self.imageProcessor.update_settings()
 
 
     def handle_sr_enabled(self):        
@@ -548,10 +551,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
               self.serial.reset_output_buffer()
       
               if mode == SEQUENTIAL:
-                  print("writing multi")
                   self.serial.write(b'm')
               if mode == SINGLE:
-                  print("writing single")
                   self.serial.write(('s' + str(self.sr_single_led_id) + '\n').encode('utf_8'))   
                   
       
@@ -602,8 +603,6 @@ class Holo_Bundle(CAS_GUI_Bundle):
         QApplication.restoreOverrideCursor()
         
         
-        
-        
     def sr_capture_shift_clicked(self):
         """
         """
@@ -615,14 +614,12 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.sr_param_depths.append(self.imageProcessor.get_processor().holo.depth)
         QApplication.restoreOverrideCursor()
 
-    
    
     def sr_clear_shifts_clicked(self):
         """
         """
         self.sr_param_holograms = []
         self.sr_param_depths = []
-
 
 
     def sr_save_calibration_lut_clicked(self):  
@@ -636,8 +633,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         
     def sr_calibrate_click(self): 
-        """ Called when SR Calibrate is clicked, flag the imageProcessor to
-        calibrate once images are available
+        """ Called when SR Calibrate is clicked
         """
         if not self.srMultiBackgroundsCheck.isChecked() and self.backgroundImage is None:
             QMessageBox.about(self, "Error", "Background file required.")  
