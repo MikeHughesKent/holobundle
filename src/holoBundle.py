@@ -105,7 +105,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         
         # Simulated camera used this file for images
         self.sourceFilename = r"C:\Users\mrh40\Dropbox\Programming\Python\holoBundle\tests\test_data\sr_test_1.tif"
-     
+        #self.sourceFilename = r"C:\Users\mrh40\Dropbox\Programming\Python\holoBundle\tests\test_data\sr_test_1_background.tif"
         self.rawImageBufferSize = 20
 
         # Call these functions to update things based on the default GUI options
@@ -440,6 +440,12 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 
                 self.imageProcessor.get_processor().refocus = True
                 
+                
+                # PS
+                if self.holoPixelSizeInput.value() != self.imageProcessor.get_processor().holo.pixelSize / 10**6:
+                   self.imageProcessor.get_processor().holo.set_pixel_size(self.holoPixelSizeInput.value()/ 10**6)
+                
+                
                 # Wavelength
                 if self.holoWavelengthInput.value() != self.imageProcessor.get_processor().holo.wavelength / 10**6:
                     self.imageProcessor.get_processor().holo.set_wavelength(self.holoWavelengthInput.value()/ 10**6)
@@ -477,13 +483,15 @@ class Holo_Bundle(CAS_GUI_Bundle):
             self.adjustedPixelSizeLabel.setText("Adjusted Pixel Size: " + str(round(targetPixelSize * 10**6,2)) + "microns" )
 
             if targetPixelSize != self.imageProcessor.get_processor().holo.pixelSize:
+                print(targetPixelSize)
                 self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
+                self.imageProcessor.get_processor().holo.set_pixel_size(self.holoPixelSizeInput.value()/ 10**6)
                 self.update_file_processing()
             
             else:
                 self.imageProcessor.set_batch_process_num(1)
                 self.imageProcessor.get_processor().set_differential(False)
-                
+
             if self.srEnabledCheck.isChecked():
                 
                 self.imageProcessor.get_processor().sr = True
@@ -492,7 +500,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 self.imageProcessor.get_processor().pyb.set_sr_normalisation_images(self.srBackgrounds)
                 self.imageProcessor.get_processor().pyb.set_sr_multi_normalisation(self.srMultiNormalisationCheck.isChecked())
                 self.imageProcessor.get_processor().pyb.set_sr_multi_backgrounds(self.srMultiBackgroundsCheck.isChecked())
-                self.imageProcessor.get_processor().set_batch_process_num(self.srNumShiftsInput.value() + 1)
+                self.imageProcessor.set_batch_process_num(self.srNumShiftsInput.value() + 1)
                 self.imageProcessor.get_processor().pyb.set_sr_use_lut(self.srUseLUTCheck.isChecked())
                 self.imageProcessor.get_processor().pyb.set_sr_param_value(self.holoDepthInput.value()/ 10**6)
 
@@ -624,11 +632,11 @@ class Holo_Bundle(CAS_GUI_Bundle):
 
     def sr_save_calibration_lut_clicked(self):  
         with open('sr_calib_lut.dat','wb') as pickleFile:
-            pickle.dump(self.imageProcessor.pyb.srCalibrationLUT, pickleFile)
+            pickle.dump(self.imageProcessor.get_processor().pyb.srCalibrationLUT, pickleFile)
         
     def sr_load_calibration_lut_clicked(self):  
         with open('sr_calib_lut.dat', 'rb') as pickleFile:
-            self.imageProcessor.pyb.srCalibrationLUT = pickle.load(pickleFile)
+            self.imageProcessor.get_processor().pyb.srCalibrationLUT = pickle.load(pickleFile)
         self.processing_options_changed()  
         
         
@@ -645,11 +653,12 @@ class Holo_Bundle(CAS_GUI_Bundle):
       
         if self.imageProcessor is not None:
             QApplication.setOverrideCursor(Qt.WaitCursor)
-            self.imageProcessor.pyb.set_calib_image(self.backgroundImage)
-            self.imageProcessor.calibrate_sr()
+            self.imageProcessor.get_processor().pyb.set_calib_image(self.backgroundImage)
+            self.imageProcessor.get_processor().currentInputImage = self.currentImage
+            self.imageProcessor.get_processor().calibrate_sr()
             
             # We also do a conventional calibration at the same time
-            self.imageProcessor.pyb.calibrate()            
+            self.imageProcessor.get_processor().pyb.calibrate()            
             QApplication.restoreOverrideCursor()
         
         self.processing_options_changed()   
@@ -706,7 +715,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
         """ Sets the current SR image stack as the background stack and updates processor
         """
         if self.imageProcessor is not None and self.srEnabledCheck.isChecked():
-            self.srBackgrounds = pybundle.SuperRes.sort_sr_stack(self.imageProcessor.currentInputImage, self.imageProcessor.batchProcessNum - 1)    
+           # print(np.shape(self.imageProcessor.currentInputImage))
+            self.srBackgrounds = pybundle.SuperRes.sort_sr_stack(self.imageProcessor.acquire_set(), self.imageProcessor.batchProcessNum - 1)    
             self.backgroundImage = self.srBackgrounds[:,:,self.sr_single_led_id]
             self.processing_options_changed()
             

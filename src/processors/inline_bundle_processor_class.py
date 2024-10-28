@@ -43,6 +43,7 @@ class InlineBundleProcessorClass(ImageProcessorClass):
     sr = False
     batchProcessNum = 1
     differential = False
+    currentInputImage = None
     
     def __init__(self, **kwargs):
         
@@ -53,6 +54,7 @@ class InlineBundleProcessorClass(ImageProcessorClass):
                 
     def process(self, inputFrame):
         """ This is called by the thread whenever a frame needs to be processed"""
+        self.currentInputImage = inputFrame
         outputFrame = None
         if self.sr == True:
            # Check we have a list of images, otherwise return None
@@ -61,8 +63,7 @@ class InlineBundleProcessorClass(ImageProcessorClass):
               print("SR but no list of images")
               return None
            
-            
-            
+                        
            # fig, axs = plt.subplots(2, 4, dpi=150)
            # fig.suptitle('Raw', fontsize=16)
            # axs[0,0].imshow(inputFrame[:,:,0])
@@ -87,7 +88,6 @@ class InlineBundleProcessorClass(ImageProcessorClass):
            # axs[1,1].imshow(imgs[:,:,5])
            # axs[1,2].imshow(imgs[:,:,6])
 
-
           
            if False:
                fig, axs = plt.subplots(2, 2)
@@ -104,10 +104,8 @@ class InlineBundleProcessorClass(ImageProcessorClass):
         
         
         elif self.differential:   # Differential Mode
-            print(inputFrame.ndim)
             if inputFrame.ndim == 3:
                 if np.shape(inputFrame)[2] == 2:
-                    print("proc diff")
                     outputFrame = inputFrame[:,:,0] - inputFrame[:,:,1]
                     outputFrame = self.pyb.process(outputFrame)
                     self.preProcessFrame = outputFrame
@@ -123,8 +121,9 @@ class InlineBundleProcessorClass(ImageProcessorClass):
            
             self.preProcessFrame = outputFrame
             
-            
-    
+        #print(self.holo.wavelength)
+        #print(self.holo.pixelSize)
+        
         if self.refocus == True and outputFrame is not None:
             outputFrame = self.holo.process(outputFrame)
             if self.showPhase is False:
@@ -136,13 +135,16 @@ class InlineBundleProcessorClass(ImageProcessorClass):
             if outputFrame is not None:
                 outputFrame = np.abs(outputFrame)   # Take intensity from complex image
                 
-            
         return outputFrame
 
-    def message(self, message, parameter):
-        if message == "set_depth":
-            self.holo.set_depth(parameter)
+    #def message(self, message, parameter):
+     #   if message == "set_depth":
+      #      self.holo.set_depth(parameter)
 
+
+    def set_depth(self,depth):
+        self.holo.set_depth(depth)
+        
     def handle_flags(self):
         """ Flags can be set externally for actions which cannot be performed
         until one or more images are available. Flags are checked every time we process a new image 
@@ -168,11 +170,11 @@ class InlineBundleProcessorClass(ImageProcessorClass):
                     
     def calibrate_sr(self):
         
-        #if len(self.currentInputImage) >= self.batchProcessNum:
+        if len(self.currentInputImage) >= self.batchProcessNum:
         
               # Convert list of images to 3D numpy array
-              #img = self.currentInputImage[0]
-              #imgs = np.zeros((np.shape(img)[0], np.shape(img)[1], self.batchProcessNum))
+              img = self.currentInputImage[0]
+              imgs = np.zeros((np.shape(img)[0], np.shape(img)[1], self.batchProcessNum))
               #imgs[:,:,0] = img
             
               #for idx, img in enumerate(self.currentInputImage):
@@ -180,7 +182,7 @@ class InlineBundleProcessorClass(ImageProcessorClass):
               
               # Extract a sequence of frames in correct order following blank reference frame
               calibImgs = pybundle.SuperRes.sort_sr_stack(self.currentInputImage, self.batchProcessNum - 1)    
-        
+              print(np.shape(calibImgs))
               # SR Calibration
               self.pyb.set_sr_calib_images(calibImgs)
               self.pyb.calibrate_sr()
