@@ -84,6 +84,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
     mosaicingEnabled = False
     sr_single_led_id = 1  
     serial = None
+    #restoreGUI = False
     
     def __init__(self,parent=None):        
         
@@ -93,7 +94,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
         # If we are doing Super Res try to open the serial comms to the LED driver
         if self.sr:
              try: 
-                 self.serial = serial.Serial('COM3', 9600, timeout=0,
+                 self.serial = serial.Serial(self.srCOMPort.text(), 9600, timeout=0,
                       parity=serial.PARITY_EVEN, rtscts=1)
                  self.serial.reset_output_buffer()
                  time.sleep(1)    # Otherwise it seems not to work, not sure why
@@ -330,10 +331,15 @@ class Holo_Bundle(CAS_GUI_Bundle):
         self.srLUTNumStepsInput = QSpinBox(objectName = 'srLUTNumStepsInput')
         self.srLUTMinInput.setMaximum(1000)
 
+
+        self.srCOMPort = QLineEdit(objectName = "srCOMPort")
+        
         self.srSaveCalibrationLUTBtn=QPushButton('Save Calibration LUT')
         self.srLoadCalibrationLUTBtn=QPushButton('Load Calibration LUT') 
          
         layout.addWidget(self.srEnabledCheck)
+        layout.addWidget(QLabel("LED Controller COM Port"))
+        layout.addWidget(self.srCOMPort)
 
         layout.addWidget(self.srCalibBtn)
         layout.addWidget(QLabel("Number of shifts:"))
@@ -442,8 +448,8 @@ class Holo_Bundle(CAS_GUI_Bundle):
                 
                 
                 # PS
-                if self.holoPixelSizeInput.value() != self.imageProcessor.get_processor().holo.pixelSize / 10**6:
-                   self.imageProcessor.get_processor().holo.set_pixel_size(self.holoPixelSizeInput.value()/ 10**6)
+                #if self.holoPixelSizeInput.value() != self.imageProcessor.get_processor().holo.pixelSize / 10**6:
+                 #  self.imageProcessor.get_processor().holo.set_pixel_size(self.holoPixelSizeInput.value()/ 10**6)
                 
                 
                 # Wavelength
@@ -483,9 +489,7 @@ class Holo_Bundle(CAS_GUI_Bundle):
             self.adjustedPixelSizeLabel.setText("Adjusted Pixel Size: " + str(round(targetPixelSize * 10**6,2)) + "microns" )
 
             if targetPixelSize != self.imageProcessor.get_processor().holo.pixelSize:
-                print(targetPixelSize)
                 self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
-                self.imageProcessor.get_processor().holo.set_pixel_size(self.holoPixelSizeInput.value()/ 10**6)
                 self.update_file_processing()
             
             else:
@@ -650,19 +654,22 @@ class Holo_Bundle(CAS_GUI_Bundle):
         if self.srMultiBackgroundsCheck.isChecked() and self.srBackgrounds is None:
             QMessageBox.about(self, "Error", "Background stack required.")  
             return  
+        else:
+            self.start_buffering(self.srNumShiftsInput.value() + 1, self.sr_calibrate)
       
-        if self.imageProcessor is not None:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            self.imageProcessor.get_processor().pyb.set_calib_image(self.backgroundImage)
-            self.imageProcessor.get_processor().currentInputImage = self.currentImage
-            self.imageProcessor.get_processor().calibrate_sr()
+    def sr_calibrate(self):
+        
+        frames = np.moveaxis(self.get_auxillary_stack(),0,2)
+             
+        self.imageProcessor.get_processor().pyb.set_calib_image(self.backgroundImage)
+        self.imageProcessor.get_processor().currentInputImage = self.currentImage
+        self.imageProcessor.get_processor().pyb.set_sr_calib_images(frames)
+
+        self.imageProcessor.get_processor().pyb.calibrate_sr()
             
-            # We also do a conventional calibration at the same time
-            self.imageProcessor.get_processor().pyb.calibrate()            
-            QApplication.restoreOverrideCursor()
-        
-        self.processing_options_changed()   
-        
+        # We also do a conventional calibration at the same time
+        self.imageProcessor.get_processor().pyb.calibrate()            
+        #   QApplication.restoreOverrideCursor()
             
     def save_sr_calib_clicked(self):
         """ Saves SR calibration to a file.
